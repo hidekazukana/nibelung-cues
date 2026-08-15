@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ニーベルング 抜粋つなぎ再生</title>
+<style>
+  :root {
+    --bg: #101014;
+    --panel: #191920;
+    --panel-2: #22222C;
+    --ink: #EDEAE3;
+    --ink-2: #B4AFA4;
+    --muted: #7E7973;
+    --line: #2E2E3A;
+    --brass: #D9B15A;
+    --op1: #D4A94A;
+    --op2: #7BA3CE;
+    --op3: #77B07E;
+    --op4: #D9765C;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  body {
+    color: var(--ink);
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI",
+                 "Noto Sans JP", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.6;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mincho { font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; }
+  .mono { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+  /* ---------- sticky player ---------- */
+  .stage { position: sticky; top: 0; z-index: 10; background: var(--bg); }
+  .frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+  .frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .err {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+    padding: 18px; text-align: center; background: #16161C; color: var(--ink);
+    font-size: 13px; line-height: 1.6;
+  }
+  .err b { color: var(--brass); font-size: 14px; }
+  .err span { color: var(--ink-2); }
+
+  .now { padding: 10px 14px 8px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .now-meta {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: 11.5px; color: var(--muted); margin-bottom: 3px;
+  }
+  .now-meta .pos { color: var(--hue, var(--brass)); font-weight: 700; }
+  .now-meta .chip { border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
+  .now-ja { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.35; }
+  .now-de { margin: 2px 0 0; font-size: 11.5px; color: var(--muted); }
+
+  .bar { height: 3px; background: var(--line); border-radius: 2px; margin-top: 9px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--hue, var(--brass)); }
+  .times { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .controls {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px 11px; background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  button {
+    font: inherit; color: var(--ink); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 9px;
+    min-height: 46px; padding: 0 14px; cursor: pointer;
+  }
+  button:active { background: #2C2C38; }
+  button:disabled { opacity: .35; }
+  .btn-main { flex: 1; font-weight: 700; background: var(--hue, var(--brass)); color: #14120C; border-color: transparent; }
+  .toggle { font-size: 12px; min-height: 46px; padding: 0 11px; white-space: nowrap; }
+  .toggle[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
+
+  /* ---------- list ---------- */
+  .hint { padding: 12px 14px 4px; font-size: 12px; color: var(--muted); }
+  .group {
+    padding: 16px 14px 6px; font-size: 12px; letter-spacing: .1em;
+    color: var(--gh); font-weight: 700;
+  }
+  .group span { color: var(--muted); font-weight: 400; letter-spacing: 0; margin-left: 6px; }
+
+  ol { list-style: none; margin: 0; padding: 0 10px; }
+  li { margin-bottom: 6px; }
+  .item {
+    display: flex; gap: 10px; align-items: flex-start; width: 100%;
+    text-align: left; padding: 10px 11px; min-height: 56px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-left: 3px solid var(--hue); border-radius: 9px;
+  }
+  .item[aria-current="true"] { background: var(--panel-2); border-color: var(--hue); }
+  .item .n { font-size: 11.5px; font-weight: 700; color: var(--hue); flex: 0 0 auto; padding-top: 2px; min-width: 30px; }
+  .item .tx { min-width: 0; flex: 1; }
+  .item .t1 { display: block; font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+  .item .t2 { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .item .dur { font-size: 11.5px; color: var(--ink-2); flex: 0 0 auto; padding-top: 2px; }
+
+  footer { padding: 22px 14px 40px; font-size: 11.5px; color: var(--muted); line-height: 1.7; }
+  footer b { color: var(--ink-2); }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="frame"><div id="player"></div><div class="err" id="err" hidden></div></div>
+
+  <div class="now">
+    <div class="now-meta">
+      <span class="pos mono" id="pos">1 / 21</span>
+      <span class="chip mono" id="page">score p.1</span>
+      <span class="chip" id="act">第1幕</span>
+      <span class="mono" id="mark">小節番号 A–I</span>
+    </div>
+    <p class="now-ja mincho" id="titleJa">ラインの黄金</p>
+    <p class="now-de" id="titleDe">Das Rheingold</p>
+    <div class="bar"><i id="prog"></i></div>
+    <div class="times"><span class="mono" id="tNow">0:00</span><span class="mono" id="tLen">4:19</span></div>
+  </div>
+
+  <div class="controls">
+    <button id="prev" aria-label="前の抜粋">◀</button>
+    <button class="btn-main" id="play">▶ 再生</button>
+    <button id="next" aria-label="次の抜粋">▶</button>
+    <button class="toggle" id="auto" aria-pressed="true">自動送り</button>
+  </div>
+</div>
+
+<p class="hint">21箇所を順に再生します（合計 1:05:03）。項目をタップするとそこから続けて再生します。</p>
+<div id="list"></div>
+
+<footer>
+  <p>出典：「260527 ニーベルング_ドイツ語訳とYouTubeリンク_rev.1.xlsx」シート「曲名」。<b>音源：ゲオルク・ショルティ指揮／ウィーン・フィルハーモニー管弦楽団</b>（YouTube上の全曲動画7本を、該当箇所だけ順に再生しています）。</p>
+  <p>再生はYouTubeの埋め込みプレーヤーによるものです。動画が削除・非公開になると再生できなくなります。</p>
+</footer>
+
+<script>
+var OPERAS = [
+  { name: "ラインの黄金",   de: "Das Rheingold",     hue: "var(--op1)" },
+  { name: "ワルキューレ",   de: "Die Walküre",       hue: "var(--op2)" },
+  { name: "ジークフリート", de: "Siegfried",         hue: "var(--op3)" },
+  { name: "神々の黄昏",     de: "Götterdämmerung",   hue: "var(--op4)" }
+];
+
+// op, no, page, act, mark, 譜面表記(訳), 譜面表記, videoId, start, end
+var CLIPS = [
+  [0, 1,  1,  "第1幕", "A–I",       "ラインの黄金",                             "Das Rheingold",                            "keabquK8Zsc",    0,  259],
+  [0, 2,  6,  "第1幕", "I–",        "ラインの黄金",                             "Das Rheingold",                            "keabquK8Zsc",  702,  973],
+  [0, 3,  9,  "第2幕", "–N",        "ニーベルハイム（ニーベルング族の地下国）", "Nibelheim",                                "keabquK8Zsc", 4101, 4192],
+  [0, 4,  12, "第3幕", "N–",        "ニーベルハイム（ニーベルング族の地下国）", "Nibelheim",                                "keabquK8Zsc", 4364, 4400],
+  [0, 5,  13, "第4幕", "–",         "神々のヴァルハラ入城",                     "Einzug der Götter in Valhall",             "keabquK8Zsc", 8238, 8378],
+  [1, 6,  15, "第2幕", "–",         "ワルキューレ - ヴォータンの怒り",          "Die Walküre – Wotans Zorn",                "icHLZFlMcXU",    0,  141],
+  [1, 7,  18, "第3幕", "–J",        "ワルキューレの騎行",                       "Der Ritt der Walküren",                    "wupuXlaqvz0",    0,  126],
+  [1, 8,  23, "第3幕", "J–",        "ワルキューレの騎行",                       "Der Ritt der Walküren",                    "wupuXlaqvz0",  260,  334],
+  [1, 9,  25, "第3幕", "–",         "魔の炎",                                   "Feuerzauber",                              "wupuXlaqvz0", 3947, 4224],
+  [2, 10, 31, "第2幕", "–D",        "ジークフリート - 森のささやき",            "Siegfried – Waldweben",                    "AmVvhmwei78", 2000, 2102],
+  [2, 11, 33, "第2幕", "D8小節目–", "ジークフリート - 森のささやき",            "Siegfried – Waldweben",                    "AmVvhmwei78", 2286, 2297],
+  [2, 12, 33, "第2幕", "–",         "ジークフリートの角笛",                     "Siegfrieds Hornruf",                       "AmVvhmwei78", 2298, 2410],
+  [2, 13, 34, "第2幕", "–",         "ファーフナーとの戦い",                     "Der Kampf mit Fafner",                     "AmVvhmwei78", 2556, 2685],
+  [2, 14, 37, "第3幕", "–",         "ブリュンヒルデの岩山にて",                 "Auf dem Brünnhildenfelsen",                "67H8VQCEXsI", 1832, 2099],
+  [2, 15, 42, "第3幕", "–Q",        "覚醒（ブリュンヒルデの目覚め）",           "Erweckung",                                "67H8VQCEXsI", 2900, 3039],
+  [2, 16, 44, "第3幕", "Q6小節目–", "覚醒（ブリュンヒルデの目覚め）",           "Erweckung",                                "67H8VQCEXsI", 3133, 3150],
+  [3, 17, 44, "序幕",  "–",         "神々の黄昏 - ジークフリートとブリュンヒルデ", "Götterdämmerung – Siegfried und Brünnhilde", "oCGXLQ5PHXE", 1196, 1304],
+  [3, 18, 46, "序幕",  "–",         "ジークフリートのラインの旅",               "Siegfrieds Rheinfahrt",                    "oCGXLQ5PHXE", 1826, 2324],
+  [3, 19, 60, "第3幕", "–",         "ジークフリートの葬送行進曲",               "Siegfrieds Trauermarsch",                  "6zuweYNL364", 2410, 2804],
+  [3, 20, 64, "第3幕", "–Lebhaft",  "ブリュンヒルデの自己犠牲",                 "Brünnhildes Selbstopfer",                  "6zuweYNL364", 3446, 3642],
+  [3, 21, 67, "第3幕", "Lebhaft–",  "ブリュンヒルデの自己犠牲",                 "Brünnhildes Selbstopfer",                  "6zuweYNL364", 4155, 4670]
+].map(function (r) {
+  return { op: r[0], no: r[1], page: r[2], act: r[3], mark: r[4],
+           ja: r[5], de: r[6], v: r[7], s: r[8], e: r[9] };
+});
+
+var $ = function (id) { return document.getElementById(id); };
+var fmt = function (t) {
+  t = Math.max(0, Math.floor(t));
+  var m = Math.floor(t / 60), s = t % 60;
+  return m + ":" + (s < 10 ? "0" : "") + s;
+};
+
+/* ---------- build list ---------- */
+(function buildList() {
+  var host = $("list"), lastOp = -1, ol = null;
+  CLIPS.forEach(function (c, i) {
+    if (c.op !== lastOp) {
+      lastOp = c.op;
+      var h = document.createElement("div");
+      h.className = "group";
+      h.style.setProperty("--gh", OPERAS[c.op].hue);
+      h.innerHTML = OPERAS[c.op].name + "<span>" + OPERAS[c.op].de + "</span>";
+      host.appendChild(h);
+      ol = document.createElement("ol");
+      host.appendChild(ol);
+    }
+    var li = document.createElement("li");
+    var b = document.createElement("button");
+    b.className = "item";
+    b.style.setProperty("--hue", OPERAS[c.op].hue);
+    b.setAttribute("data-i", i);
+    b.innerHTML =
+      '<span class="n mono">No.' + c.no + '</span>' +
+      '<span class="tx"><span class="t1">' + c.ja + '</span>' +
+      '<span class="t2">' + c.de + ' · ' + c.act + ' · score p.' + c.page + '</span></span>' +
+      '<span class="dur mono">' + fmt(c.e - c.s) + '</span>';
+    b.addEventListener("click", function () { go(i, true); });
+    li.appendChild(b);
+    ol.appendChild(li);
+  });
+})();
+
+/* ---------- player ---------- */
+var player = null, idx = 0, ready = false, watch = null, autoAdvance = true;
+var lastGoAt = 0, fired = false;   // 二重送り防止（監視タイマーとENDEDイベントの競合対策）
+
+function paint() {
+  var c = CLIPS[idx], hue = OPERAS[c.op].hue;
+  $("stage").style.setProperty("--hue", hue);
+  $("pos").textContent = c.no + " / 21";
+  $("page").textContent = "score p." + c.page;
+  $("act").textContent = c.act;
+  $("mark").textContent = "小節番号 " + c.mark;
+  $("titleJa").textContent = c.ja;
+  $("titleDe").textContent = c.de;
+  $("tLen").textContent = fmt(c.e - c.s);
+  $("tNow").textContent = "0:00";
+  $("prog").style.width = "0%";
+  $("prev").disabled = idx === 0;
+  $("next").disabled = idx === CLIPS.length - 1;
+  document.querySelectorAll(".item").forEach(function (el) {
+    el.setAttribute("aria-current", +el.getAttribute("data-i") === idx ? "true" : "false");
+  });
+  var cur = document.querySelector('.item[data-i="' + idx + '"]');
+  if (cur) cur.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+function go(i, play) {
+  if (i < 0 || i >= CLIPS.length) { stopWatch(); return; }
+  idx = i; paint();
+  lastGoAt = Date.now(); fired = false;
+  document.getElementById("err").hidden = true;
+  var c = CLIPS[idx];
+  if (!ready) return;
+  if (play) player.loadVideoById({ videoId: c.v, startSeconds: c.s, endSeconds: c.e });
+  else player.cueVideoById({ videoId: c.v, startSeconds: c.s, endSeconds: c.e });
+}
+
+function startWatch() {
+  stopWatch();
+  watch = setInterval(function () {
+    if (!ready || !player.getCurrentTime) return;
+    var c = CLIPS[idx], t = player.getCurrentTime(), len = c.e - c.s;
+    // 読み込み直後は前の抜粋の再生位置が残るので、範囲外の値は無視する
+    if (t < c.s - 2) return;
+    var el = Math.min(Math.max(t - c.s, 0), len);
+    $("tNow").textContent = fmt(el);
+    $("prog").style.width = (len ? (el / len) * 100 : 0) + "%";
+    // endSeconds が効かない場合の保険。再生中のみ判定する
+    if (player.getPlayerState() === YT.PlayerState.PLAYING && t >= c.e - 0.3) advance();
+  }, 250);
+}
+function stopWatch() { if (watch) { clearInterval(watch); watch = null; } }
+
+function advance() {
+  // 直前の抜粋から遅れて届いた ENDED を無視する（最短の抜粋でも11秒あるので安全）
+  if (Date.now() - lastGoAt < 1000) return;
+  if (fired) return;
+  fired = true;
+  stopWatch();
+  if (autoAdvance && idx < CLIPS.length - 1) go(idx + 1, true);
+  else { player.pauseVideo(); $("play").textContent = "▶ 再生"; }
+}
+
+function showError(ev) {
+  var code = ev && ev.data, msg, sub;
+  if (code === 153 || code === 101 || code === 150) {
+    msg = "この開き方では再生できません";
+    sub = (location.protocol === "file:")
+      ? "ファイルを直接開くと、YouTubeが再生を拒否します（エラー" + code + "）。<br>http:// または https:// のURLとして開いてください。"
+      : "YouTube側が埋め込み再生を拒否しました（エラー" + code + "）。<br>広告ブロッカーを一時的に切ると直ることがあります。";
+  } else if (code === 100) {
+    msg = "動画が見つかりません";
+    sub = "元の動画が削除または非公開になった可能性があります（エラー100）。";
+  } else {
+    msg = "再生できませんでした";
+    sub = "エラーコード " + code + "。次の抜粋に進むか、時間をおいて試してください。";
+  }
+  var e = document.getElementById("err");
+  e.innerHTML = "<b>" + msg + "</b><span>" + sub + "</span>";
+  e.hidden = false;
+  stopWatch();
+}
+
+function onYouTubeIframeAPIReady() {
+  player = new YT.Player("player", {
+    videoId: CLIPS[0].v,
+    playerVars: {
+      start: CLIPS[0].s, end: CLIPS[0].e,
+      rel: 0, playsinline: 1, modestbranding: 1
+    },
+    events: {
+      onReady: function () {
+        ready = true;
+        // YouTube は埋め込み再生に読み込み元(Referer)を要求する。エラー153の予防。
+        var f = document.getElementById("player");
+        if (f && f.tagName === "IFRAME") f.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+        paint();
+      },
+      onError: showError,
+      onStateChange: function (ev) {
+        if (ev.data === YT.PlayerState.PLAYING) { $("play").textContent = "❚❚ 一時停止"; startWatch(); }
+        else if (ev.data === YT.PlayerState.PAUSED) { $("play").textContent = "▶ 再生"; stopWatch(); }
+        else if (ev.data === YT.PlayerState.ENDED) { advance(); }
+      }
+    }
+  });
+}
+window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+$("play").addEventListener("click", function () {
+  if (!ready) return;
+  var st = player.getPlayerState();
+  if (st === YT.PlayerState.PLAYING) player.pauseVideo();
+  else {
+    var t = player.getCurrentTime ? player.getCurrentTime() : 0, c = CLIPS[idx];
+    if (t < c.s - 1 || t > c.e) player.loadVideoById({ videoId: c.v, startSeconds: c.s, endSeconds: c.e });
+    else player.playVideo();
+  }
+});
+$("prev").addEventListener("click", function () { go(idx - 1, true); });
+$("next").addEventListener("click", function () { go(idx + 1, true); });
+$("auto").addEventListener("click", function () {
+  autoAdvance = !autoAdvance;
+  this.setAttribute("aria-pressed", autoAdvance ? "true" : "false");
+});
+
+paint();
+(function () {
+  var s = document.createElement("script");
+  s.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>
