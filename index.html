@@ -45,6 +45,10 @@
   }
   .err b { color: var(--brass); font-size: 14px; }
   .err span { color: var(--ink-2); }
+  .err a.yt {
+    margin-top: 6px; padding: 9px 16px; border-radius: 9px;
+    background: var(--brass); color: #14120C; font-weight: 700; text-decoration: none;
+  }
 
   .now { padding: 10px 14px 8px; background: var(--panel); border-bottom: 1px solid var(--line); }
   .now-meta {
@@ -278,7 +282,7 @@ function showError(ev) {
     msg = "この開き方では再生できません";
     sub = (location.protocol === "file:")
       ? "ファイルを直接開くと、YouTubeが再生を拒否します（エラー" + code + "）。<br>http:// または https:// のURLとして開いてください。"
-      : "YouTube側が埋め込み再生を拒否しました（エラー" + code + "）。<br>広告ブロッカーを一時的に切ると直ることがあります。";
+      : "この動画は埋め込み再生が禁止されています（エラー" + code + "）。<br>投稿者の設定変更・著作権制限によるものです。";
   } else if (code === 100) {
     msg = "動画が見つかりません";
     sub = "元の動画が削除または非公開になった可能性があります（エラー100）。";
@@ -286,8 +290,11 @@ function showError(ev) {
     msg = "再生できませんでした";
     sub = "エラーコード " + code + "。次の抜粋に進むか、時間をおいて試してください。";
   }
+  var c = CLIPS[idx];
+  var url = "https://www.youtube.com/watch?v=" + c.v + "&t=" + c.s + "s";
   var e = document.getElementById("err");
-  e.innerHTML = "<b>" + msg + "</b><span>" + sub + "</span>";
+  e.innerHTML = "<b>" + msg + "</b><span>" + sub + "</span>" +
+    '<a class="yt" href="' + url + '" target="_blank" rel="noopener">YouTubeで開く（' + fmt(c.s) + '〜）</a>';
   e.hidden = false;
   stopWatch();
 }
