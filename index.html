@@ -57,6 +57,7 @@
   }
   .now-meta .pos { color: var(--hue, var(--brass)); font-weight: 700; }
   .now-meta .chip { border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
+  .now-meta .ytlink { margin-left: auto; color: var(--hue, var(--brass)); text-decoration: none; }
   .now-ja { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.35; }
   .now-de { margin: 2px 0 0; font-size: 11.5px; color: var(--muted); }
 
@@ -118,6 +119,7 @@
       <span class="chip mono" id="page">score p.1</span>
       <span class="chip" id="act">第1幕</span>
       <span class="mono" id="mark">小節番号 A–I</span>
+      <a class="ytlink" id="ytlink" href="#" target="_blank" rel="noopener">YouTubeで開く ↗</a>
     </div>
     <p class="now-ja mincho" id="titleJa">ラインの黄金</p>
     <p class="now-de" id="titleDe">Das Rheingold</p>
@@ -228,6 +230,7 @@ function paint() {
   $("titleJa").textContent = c.ja;
   $("titleDe").textContent = c.de;
   $("tLen").textContent = fmt(c.e - c.s);
+  $("ytlink").href = "https://www.youtube.com/watch?v=" + c.v + "&t=" + c.s + "s";
   $("tNow").textContent = "0:00";
   $("prog").style.width = "0%";
   $("prev").disabled = idx === 0;
